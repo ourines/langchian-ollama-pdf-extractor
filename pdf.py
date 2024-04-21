@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
+from tqdm import tqdm
 
 prompt =ChatPromptTemplate.from_messages(
     [
@@ -93,21 +93,26 @@ def split_docs(documents, chunk_size=int(128_000 * 0.8), chunk_overlap=20):
     
     # returning the document chunks
     return chunks
+
 documents = split_docs(documents=docs)
 # Run chain
-llm = OllamaFunctions(model="mistral:7b-instruct", temperature=0)
+llm = OllamaFunctions(model="llama3", temperature=0)
+# llm = OllamaFunctions(model="mistral:7b-instruct", temperature=0)
 chain = prompt | create_extraction_chain(schema, llm)
+
 responses = []
-for document in documents:
-  input_data = {
-          "text": document,
-          "json_schema": schema,  
-          "instruction": (
-              "recipe.each recipe has a name and list of ingredients.ingredients should have a name,numeric amount,and unit of amount"
-          )
-      }
-  response = chain.invoke(input_data)
-  responses.append(response)
+for document in tqdm(documents, desc="Processing documents"):
+    input_data = {
+        "text": document,
+        "json_schema": schema,  
+        "instruction": (
+            "recipe.each recipe has a name and list of ingredients.ingredients should have a name,numeric amount,and unit of amount"
+        )
+    }
+    response = chain.invoke(input_data)
+    responses.append(response)
+
 for response in responses:
     result = response['text']
     print(json.dumps(result, indent=4))
+    
